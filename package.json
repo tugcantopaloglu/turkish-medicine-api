@@ -1,0 +1,30 @@
+{
+  "name": "turkish-medicine-api",
+  "version": "1.0.0",
+  "description": "API service for Turkish Medicine Database (TITCK) with automated weekly updates",
+  "main": "src/server.js",
+  "type": "module",
+  "scripts": {
+    "start": "node src/server.js",
+    "dev": "node --watch src/server.js",
+    "download": "node src/downloader.js",
+    "scheduler": "node src/scheduler.js"
+  },
+  "keywords": [
+    "medicine",
+    "api",
+    "turkish",
+    "titck",
+    "pharmacy"
+  ],
+  "author": "",
+  "license": "MIT",
+  "dependencies": {
+    "express": "^4.19.2",
+    "axios": "^1.7.2",
+    "cheerio": "^1.0.0-rc.12",
+    "xlsx": "^0.18.5",
+    "node-cron": "^3.0.3",
+    "dotenv": "^16.4.5"
+  }
+}
