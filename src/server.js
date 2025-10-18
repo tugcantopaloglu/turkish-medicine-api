@@ -51,6 +51,17 @@ async function loadData() {
 }
 
 function paginate(data, page = 1, limit = 50) {
+  // If limit is 0 or -1, return all data without pagination
+  if (limit === 0 || limit === -1) {
+    return {
+      page: 1,
+      limit: data.length,
+      total: data.length,
+      totalPages: 1,
+      data: data
+    };
+  }
+
   const startIndex = (page - 1) * limit;
   const endIndex = page * limit;
 
@@ -77,12 +88,13 @@ app.get('/', (req, res) => {
 
   res.json({
     name: 'Turkish Medicine API',
-    version: '2.0.0',
+    version: '2.1.0',
     description: 'API for Turkish Medicine Database (TITCK) - All Sheets Supported',
     endpoints: {
       '/': 'API information',
       '/health': 'Health check',
-      '/api/medicines': 'Get all medicines from all sheets (paginated)',
+      '/api/medicines': 'Get all medicines from all sheets (paginated, use limit=0 or limit=-1 for all)',
+      '/api/medicines/all': 'Get ALL medicines without pagination',
       '/api/medicines/search': 'Search medicines (query: q, optional: sheet)',
       '/api/medicines/filter': 'Filter by field (params: field, value, optional: sheet)',
       '/api/sheets': 'List all available sheets',
@@ -96,6 +108,13 @@ app.get('/', (req, res) => {
       '/api/metadata': 'Get data metadata',
       '/api/reload': 'Reload data from Excel file',
       '/api/download': 'Download latest file from source'
+    },
+    paginationOptions: {
+      'Default': 'limit=50 (default page size)',
+      'Custom limit': 'limit=100 (any positive number)',
+      'All records (option 1)': 'limit=0 (returns all records)',
+      'All records (option 2)': 'limit=-1 (returns all records)',
+      'All records (option 3)': '/api/medicines/all (dedicated endpoint)'
     },
     sheets: sheets,
     sheetAliases: {
@@ -117,6 +136,17 @@ app.get('/api/medicines', (req, res) => {
   const limit = parseInt(req.query.limit) || 50;
 
   res.json(paginate(medicineData, page, limit));
+});
+
+app.get('/api/medicines/all', (req, res) => {
+  if (!medicineData) {
+    return res.status(503).json({ error: 'Data not loaded yet' });
+  }
+
+  res.json({
+    total: medicineData.length,
+    data: medicineData
+  });
 });
 
 app.get('/api/medicines/search', (req, res) => {

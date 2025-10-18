@@ -79,24 +79,18 @@ class ExcelParser {
   }
 
   normalizeData(rawData, sheetName) {
-    // Normalize column names and data structure
+    // Keep only original Turkish column names (more understandable)
     return rawData.map((row, index) => {
       const normalized = { _sheet: sheetName };
 
-      // Convert all keys to normalized format
+      // Keep only the original column names from Excel
       Object.keys(row).forEach(key => {
         if (key === '_sheet') {
           return; // Skip, already added
         }
 
-        // Keep original key AND create normalized version
+        // Keep original Turkish column name only
         normalized[key] = row[key];
-
-        // Also add normalized key for easier API access
-        const normalizedKey = this.normalizeKey(key);
-        if (normalizedKey && normalizedKey !== key.toLowerCase()) {
-          normalized[normalizedKey] = row[key];
-        }
       });
 
       // Add a global ID for reference

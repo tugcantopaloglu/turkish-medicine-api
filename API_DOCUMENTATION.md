@@ -1,6 +1,6 @@
 # Turkish Medicine API - Complete Documentation
 
-Version: 2.0.0
+Version: 2.1.0
 
 Base URL: `http://localhost:3000`
 
@@ -165,7 +165,24 @@ Returns all medicines from all sheets with pagination.
 | Parameter | Type | Default | Description |
 |-----------|------|---------|-------------|
 | page | integer | 1 | Page number |
-| limit | integer | 50 | Records per page |
+| limit | integer | 50 | Records per page (use 0 or -1 for all records) |
+
+**Getting All Records (3 Options)**:
+
+1. **Option 1**: Use `limit=0`
+   ```bash
+   GET /api/medicines?limit=0
+   ```
+
+2. **Option 2**: Use `limit=-1`
+   ```bash
+   GET /api/medicines?limit=-1
+   ```
+
+3. **Option 3**: Use dedicated endpoint (see below)
+   ```bash
+   GET /api/medicines/all
+   ```
 
 **Example Request**:
 ```bash
@@ -183,22 +200,55 @@ GET /api/medicines?page=2&limit=100
     {
       "_sheet": "AKTİF ÜRÜNLER LİSTESİ",
       "İlaç Adı": "PAROL 500 MG TABLET",
-      "la_ad": "PAROL 500 MG TABLET",
       "Barkod": 8699717690028,
       "ATC Kodu": "N02BE01",
-      "atc_kodu": "N02BE01",
       "ATC Adı": "paracetamol",
-      "atc_ad": "paracetamol",
       "Firma Adı": "ATABAY KİMYA SANAYİ VE TİC. A.Ş.",
-      "firma_ad": "ATABAY KİMYA SANAYİ VE TİC. A.Ş.",
       "Reçete Türü": "Normal",
-      "reete_tr": "Normal",
       "Durumu": "Aktif",
       "id": 101
     }
   ]
 }
 ```
+
+**Note**: Field names are in Turkish as they appear in the original Excel file. No duplicate normalized fields are included.
+
+#### Get All Medicines (No Pagination)
+
+```
+GET /api/medicines/all
+```
+
+Returns ALL medicines without pagination. Use this for complete data export.
+
+**Example Request**:
+```bash
+GET /api/medicines/all
+```
+
+**Response**:
+```json
+{
+  "total": 17713,
+  "data": [
+    {
+      "_sheet": "AKTİF ÜRÜNLER LİSTESİ",
+      "İlaç Adı": "PAROL 500 MG TABLET",
+      "Barkod": 8699717690028,
+      "ATC Kodu": "N02BE01",
+      "ATC Adı": "paracetamol",
+      "Firma Adı": "ATABAY KİMYA SANAYİ VE TİC. A.Ş.",
+      "Reçete Türü": "Normal",
+      "Durumu": "Aktif",
+      "id": 1
+    },
+    ... all 17,713 records ...
+  ]
+}
+```
+
+⚠️ **Warning**: This endpoint returns all records at once (potentially large response size).
 
 #### Get Medicine by ID
 
@@ -224,12 +274,11 @@ GET /api/medicines/100
 {
   "_sheet": "AKTİF ÜRÜNLER LİSTESİ",
   "İlaç Adı": "CYLORIN 25 MG YUMUSAK KAPSUL (50 KAPSUL)",
-  "la_ad": "CYLORIN 25 MG YUMUSAK KAPSUL (50 KAPSUL)",
   "Barkod": 8680199196634,
   "ATC Kodu": "L04AD01",
-  "atc_kodu": "L04AD01",
   "ATC Adı": "ciclosporin",
-  "atc_ad": "ciclosporin",
+  "Firma Adı": "DEVA HOLDING A.Ş.",
+  "Reçete Türü": "Kırmızı Reçete",
   "id": 100
 }
 ```
