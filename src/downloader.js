@@ -4,6 +4,7 @@ import fs from 'fs/promises';
 import path from 'path';
 import { fileURLToPath } from 'url';
 import dotenv from 'dotenv';
+import ExcelParser from './excelParser.js';
 
 dotenv.config();
 
@@ -64,29 +65,41 @@ class MedicineDownloader {
     }
   }
 
-  async downloadFile(url, destinationPath) {
-    try {
-      console.log('Downloading file...');
-      const response = await axios({
-        method: 'GET',
-        url: url,
-        responseType: 'arraybuffer',
-        headers: {
-          'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36'
-        },
-        maxRedirects: 5,
-        timeout: 60000
-      });
+  async downloadFile(url, destinationPath, retries = 3) {
+    for (let attempt = 1; attempt <= retries; attempt++) {
+      try {
+        console.log(`Downloading file... (Attempt ${attempt}/${retries})`);
+        const response = await axios({
+          method: 'GET',
+          url: url,
+          responseType: 'arraybuffer',
+          headers: {
+            'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36',
+            'Accept': 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
+          },
+          maxRedirects: 5,
+          timeout: 120000, // 2 minutes
+          maxContentLength: 100 * 1024 * 1024, // 100MB max
+          maxBodyLength: 100 * 1024 * 1024
+        });
 
-      await fs.writeFile(destinationPath, response.data);
-      console.log(`File downloaded successfully: ${destinationPath}`);
+        await fs.writeFile(destinationPath, response.data);
+        console.log(`File downloaded successfully: ${destinationPath}`);
 
-      const stats = await fs.stat(destinationPath);
-      console.log(`File size: ${(stats.size / 1024 / 1024).toFixed(2)} MB`);
+        const stats = await fs.stat(destinationPath);
+        console.log(`File size: ${(stats.size / 1024 / 1024).toFixed(2)} MB`);
 
-      return true;
-    } catch (error) {
-      throw new Error(`Failed to download file: ${error.message}`);
+        return true;
+      } catch (error) {
+        console.error(`Download attempt ${attempt} failed: ${error.message}`);
+        if (attempt === retries) {
+          throw new Error(`Failed to download file after ${retries} attempts: ${error.message}`);
+        }
+        // Wait before retry (exponential backoff)
+        const waitTime = attempt * 2000;
+        console.log(`Waiting ${waitTime / 1000} seconds before retry...`);
+        await new Promise(resolve => setTimeout(resolve, waitTime));
+      }
     }
   }
 
@@ -115,6 +128,16 @@ class MedicineDownloader {
       console.log('Download completed successfully!');
       console.log(`Metadata saved to: ${metadataPath}`);
 
+      // Parse Excel and create JSON
+      console.log('\nParsing Excel file...');
+      const parser = new ExcelParser(filePath);
+      await parser.parse();
+
+      const jsonPath = path.join(this.downloadPath, 'medicines.json');
+      await parser.saveAsJson(jsonPath);
+
+      console.log('Excel parsed and JSON created successfully!');
+
       return metadata;
     } catch (error) {
       console.error('Download failed:', error.message);
@@ -123,11 +146,15 @@ class MedicineDownloader {
   }
 }
 
-if (import.meta.url === `file://${process.argv[1]}`) {
+// Check if this script is being run directly
+if (import.meta.url.endsWith(path.basename(process.argv[1]))) {
   const downloader = new MedicineDownloader();
   downloader.download()
     .then(() => process.exit(0))
-    .catch(() => process.exit(1));
+    .catch((error) => {
+      console.error('Error:', error);
+      process.exit(1);
+    });
 }
 
 export default MedicineDownloader;
