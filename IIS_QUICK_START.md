@@ -1,5 +1,7 @@
 # IIS Deployment - Quick Start Guide
 
+> Historical deployment guide. The maintained [README](README.md) describes Node.js 22.14 or later, current configuration and data provenance. The regression suite does not validate IIS or iisnode deployment. Counts in the examples below are historical, not current data guarantees.
+
 **5-Minute Setup for Turkish Medicine API on Windows Server 2025**
 
 ## Prerequisites Checklist

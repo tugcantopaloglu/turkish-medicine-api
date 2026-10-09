@@ -1,12 +1,11 @@
 import XLSX from 'xlsx';
 import fs from 'fs/promises';
-import path from 'path';
 
 class ExcelParser {
   constructor(filePath) {
     this.filePath = filePath;
     this.data = null;
-    this.sheets = {};
+    this.sheets = Object.create(null);
     this.allData = [];
   }
 
@@ -15,7 +14,12 @@ class ExcelParser {
       console.log(`Parsing Excel file: ${this.filePath}`);
 
       const fileBuffer = await fs.readFile(this.filePath);
+      if (!fileBuffer.subarray(0, 4).equals(Buffer.from([0x50, 0x4b, 0x03, 0x04]))) {
+        throw new Error('Expected an XLSX ZIP archive');
+      }
       const workbook = XLSX.read(fileBuffer, { type: 'buffer' });
+      const sheets = Object.create(null);
+      const allData = [];
 
       console.log(`Found ${workbook.SheetNames.length} sheets: ${workbook.SheetNames.join(', ')}`);
 
@@ -51,7 +55,7 @@ class ExcelParser {
         const sheetData = dataRows
           .filter(row => row.some(cell => cell !== '')) // Skip empty rows
           .map(row => {
-            const obj = { _sheet: sheetName };
+            const obj = Object.assign(Object.create(null), { _sheet: sheetName });
             headers.forEach((header, index) => {
               if (header) {
                 obj[header] = row[index] !== undefined ? row[index] : '';
@@ -60,15 +64,20 @@ class ExcelParser {
             return obj;
           });
 
-        this.sheets[sheetName] = this.normalizeData(sheetData, sheetName);
-        this.allData.push(...this.sheets[sheetName]);
-        totalRecords += this.sheets[sheetName].length;
+        sheets[sheetName] = this.normalizeData(sheetData, sheetName, totalRecords);
+        allData.push(...sheets[sheetName]);
+        totalRecords += sheets[sheetName].length;
 
-        console.log(`  - ${sheetName}: ${this.sheets[sheetName].length} records`);
+        console.log(`  - ${sheetName}: ${sheets[sheetName].length} records`);
       });
 
       // Set default data to all combined data
-      this.data = this.allData;
+      if (Object.keys(sheets).length === 0) {
+        throw new Error('No sheets with an "İlaç Adı" header were found');
+      }
+      this.sheets = sheets;
+      this.allData = allData;
+      this.data = allData;
 
       console.log(`Parsed ${totalRecords} total records from ${Object.keys(this.sheets).length} sheets`);
 
@@ -78,10 +87,10 @@ class ExcelParser {
     }
   }
 
-  normalizeData(rawData, sheetName) {
+  normalizeData(rawData, sheetName, idOffset = 0) {
     // Keep only original Turkish column names (more understandable)
     return rawData.map((row, index) => {
-      const normalized = { _sheet: sheetName };
+      const normalized = Object.assign(Object.create(null), { _sheet: sheetName });
 
       // Keep only the original column names from Excel
       Object.keys(row).forEach(key => {
@@ -94,7 +103,7 @@ class ExcelParser {
       });
 
       // Add a global ID for reference
-      normalized.id = index + 1;
+      normalized.id = idOffset + index + 1;
 
       return normalized;
     });
@@ -147,11 +156,11 @@ class ExcelParser {
       throw new Error('No data loaded. Parse the Excel file first.');
     }
 
-    const lowerQuery = query.toLowerCase();
+    const lowerQuery = query.toLocaleLowerCase('tr');
 
     return dataToSearch.filter(item => {
       return Object.values(item).some(value => {
-        return value.toString().toLowerCase().includes(lowerQuery);
+        return String(value ?? '').toLocaleLowerCase('tr').includes(lowerQuery);
       });
     });
   }
@@ -163,13 +172,11 @@ class ExcelParser {
       throw new Error('No data loaded. Parse the Excel file first.');
     }
 
-    const normalizedField = this.normalizeKey(field);
-
     return dataToSearch.filter(item => {
-      const itemValue = item[normalizedField] || item[field];
-      if (itemValue === undefined) return false;
+      if (!Object.hasOwn(item, field)) return false;
+      const itemValue = item[field];
 
-      return itemValue.toString().toLowerCase().includes(value.toString().toLowerCase());
+      return String(itemValue ?? '').toLocaleLowerCase('tr').includes(String(value).toLocaleLowerCase('tr'));
     });
   }
 
@@ -180,7 +187,7 @@ class ExcelParser {
       return [];
     }
 
-    return Object.keys(dataToUse[0]);
+    return [...new Set(dataToUse.flatMap(item => Object.keys(item)))];
   }
 
   getStats() {
@@ -188,7 +195,7 @@ class ExcelParser {
       return null;
     }
 
-    const sheetStats = {};
+    const sheetStats = Object.create(null);
     Object.keys(this.sheets).forEach(sheetName => {
       sheetStats[sheetName] = {
         records: this.sheets[sheetName].length,

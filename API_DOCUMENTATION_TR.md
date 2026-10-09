@@ -1,3 +1,5 @@
+> Historical guide: maintained behavior, query validation, data provenance and configuration are documented in [API_DOCUMENTATION.md](API_DOCUMENTATION.md) and [README.md](README.md). Counts and examples below are not current data guarantees.
+
 # Turkish Medicine API — Türkçe Dokümantasyon
 
 **Sürüm:** 2.0.0  

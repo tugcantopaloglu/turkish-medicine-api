@@ -1,12 +1,13 @@
 import cron from 'node-cron';
-import dotenv from 'dotenv';
 import MedicineDownloader from './downloader.js';
-
-dotenv.config();
+import { isMainModule } from './config.js';
 
 class DownloadScheduler {
   constructor() {
     this.cronSchedule = process.env.SCHEDULE_CRON || '0 9 * * 1';
+    if (!cron.validate(this.cronSchedule)) {
+      throw new Error('SCHEDULE_CRON must be a valid cron expression');
+    }
     this.downloader = new MedicineDownloader();
     this.task = null;
   }
@@ -45,32 +46,7 @@ class DownloadScheduler {
   }
 
   getNextRunTime() {
-    const schedule = this.cronSchedule.split(' ');
-
-    const descriptions = {
-      minute: schedule[0],
-      hour: schedule[1],
-      dayOfMonth: schedule[2],
-      month: schedule[3],
-      dayOfWeek: schedule[4]
-    };
-
-    let description = 'Next run: ';
-
-    if (descriptions.dayOfWeek !== '*') {
-      const days = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
-      description += `Every ${days[parseInt(descriptions.dayOfWeek)]} `;
-    } else if (descriptions.dayOfMonth !== '*') {
-      description += `Every ${descriptions.dayOfMonth} day of month `;
-    } else {
-      description += 'Every day ';
-    }
-
-    if (descriptions.hour !== '*') {
-      description += `at ${descriptions.hour.padStart(2, '0')}:${descriptions.minute.padStart(2, '0')}`;
-    }
-
-    return description;
+    return `Schedule: ${this.cronSchedule} (system local timezone)`;
   }
 
   async runNow() {
@@ -80,11 +56,12 @@ class DownloadScheduler {
       console.log('Immediate download completed successfully!');
     } catch (error) {
       console.error('Immediate download failed:', error.message);
+      throw error;
     }
   }
 }
 
-if (import.meta.url === `file://${process.argv[1]}`) {
+if (isMainModule(import.meta.url)) {
   const scheduler = new DownloadScheduler();
   const args = process.argv.slice(2);
 

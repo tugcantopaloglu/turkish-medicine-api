@@ -1,5 +1,7 @@
 # Windows Server 2025 Offline Installation Guide
 
+> Historical deployment guide. Use Node.js 22.14 or later and the maintained lockfile. Prepare dependencies with `npm ci` on a connected machine and transfer the complete project and `node_modules`; packing only the top-level npm packages below does not include their transitive dependencies or the maintained SheetJS CDN package. For fully offline operation, supply an authorized XLSX workbook locally. Live downloading requires network access. The maintained [README](README.md) describes current configuration and data provenance. Native Windows service deployment has not been validated by the regression suite.
+
 This guide will help you install and run the Turkish Medicine API on Windows Server 2025 without internet connection (except for downloading the XLSX file from TITCK).
 
 ## Table of Contents

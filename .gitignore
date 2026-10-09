@@ -1,6 +1,7 @@
 node_modules/
 .env
 data/*.xlsx
+data/*.download
 data/*.json
 *.log
 .DS_Store

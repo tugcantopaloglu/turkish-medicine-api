@@ -1,5 +1,7 @@
 # Windows Server 2025 - IIS Deployment Guide
 
+> Historical deployment guide. Use Node.js 22.14 or later and the maintained lockfile. The regression suite validates the Node.js entry points, including the server wrapper, with synthetic data; it does not validate IIS, iisnode, Windows services or the installer recipes below. Record counts in examples are historical, not current data guarantees. See the maintained [README](README.md) for configuration and provenance.
+
 Deploy the Turkish Medicine API using **IIS (Internet Information Services)** with **iisnode** for a professional, production-ready setup.
 
 ## Table of Contents

@@ -1,0 +1,32 @@
+{
+  "description": "Synthetic regression data, not medicine records or a TITCK export.",
+  "sheets": [
+    {
+      "name": "AKTİF ÜRÜNLER LİSTESİ",
+      "rows": [
+        ["Synthetic workbook"],
+        ["İlaç Adı", "Barkod", "Amount"],
+        ["SYNTHETIC IŞIK ALPHA", "000001", 0],
+        ["SYNTHETIC BETA", "000002", 1]
+      ]
+    },
+    {
+      "name": "PASİF ÜRÜNLER LİSTESİ",
+      "rows": [
+        ["İlaç Adı", "Barkod", "Extra"],
+        ["SYNTHETIC GAMMA", "000003", "Synthetic extra field"]
+      ]
+    },
+    {
+      "name": "__proto__",
+      "rows": [
+        ["İlaç Adı", "__proto__"],
+        ["SYNTHETIC DELTA", "Synthetic cell"]
+      ]
+    },
+    {
+      "name": "Notes",
+      "rows": [["Synthetic notes, no product header"]]
+    }
+  ]
+}

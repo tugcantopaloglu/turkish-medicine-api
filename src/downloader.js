@@ -2,20 +2,33 @@ import axios from 'axios';
 import * as cheerio from 'cheerio';
 import fs from 'fs/promises';
 import path from 'path';
-import { fileURLToPath } from 'url';
-import dotenv from 'dotenv';
+import { randomUUID } from 'crypto';
 import ExcelParser from './excelParser.js';
+import { getDataPaths, isMainModule } from './config.js';
 
-dotenv.config();
-
-const __filename = fileURLToPath(import.meta.url);
-const __dirname = path.dirname(__filename);
+export function findExcelLink(html, baseUrl) {
+  const $ = cheerio.load(html);
+  for (const anchor of $('a[href]').toArray()) {
+    const link = $(anchor);
+    let url;
+    try {
+      url = new URL(link.attr('href'), baseUrl);
+    } catch {
+      continue;
+    }
+    if (['http:', 'https:'].includes(url.protocol) && /\.xlsx$/i.test(url.pathname)) {
+      return { url: url.href, date: link.closest('tr').find('td').first().text().trim() };
+    }
+  }
+  throw new Error('No XLSX file found on the page');
+}
 
 class MedicineDownloader {
   constructor() {
+    const { dataPath, filename } = getDataPaths();
     this.baseUrl = process.env.DOWNLOAD_URL || 'https://www.titck.gov.tr/dinamikmodul/43';
-    this.downloadPath = process.env.DOWNLOAD_PATH || './data';
-    this.filename = process.env.EXCEL_FILENAME || 'medicines.xlsx';
+    this.downloadPath = dataPath;
+    this.filename = filename;
   }
 
   async ensureDataDirectory() {
@@ -33,28 +46,12 @@ class MedicineDownloader {
       const response = await axios.get(this.baseUrl, {
         headers: {
           'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36'
-        }
+        },
+        timeout: 30000,
+        maxContentLength: 8 * 1024 * 1024
       });
 
-      const $ = cheerio.load(response.data);
-
-      const xlsxLink = $('a[href*=".xlsx"], a[href*=".XLSX"]').first();
-
-      if (!xlsxLink.length) {
-        throw new Error('No XLSX file found on the page');
-      }
-
-      let fileUrl = xlsxLink.attr('href');
-      if (!fileUrl.startsWith('http')) {
-        const baseUrlObj = new URL(this.baseUrl);
-        if (fileUrl.startsWith('/')) {
-          fileUrl = `${baseUrlObj.protocol}//${baseUrlObj.host}${fileUrl}`;
-        } else {
-          fileUrl = `${baseUrlObj.protocol}//${baseUrlObj.host}/${fileUrl}`;
-        }
-      }
-
-      const dateText = xlsxLink.closest('tr').find('td').first().text().trim();
+      const { url: fileUrl, date: dateText } = findExcelLink(response.data, this.baseUrl);
 
       console.log(`Found latest file: ${dateText || 'Latest'}`);
       console.log(`Download URL: ${fileUrl}`);
@@ -104,6 +101,11 @@ class MedicineDownloader {
   }
 
   async download() {
+    const attemptId = randomUUID();
+    const filePath = path.join(this.downloadPath, this.filename);
+    const stagedFilePath = path.join(this.downloadPath, `.${this.filename}.${attemptId}.download`);
+    const stagedJsonPath = path.join(this.downloadPath, `.medicines.${attemptId}.json`);
+    const stagedMetadataPath = path.join(this.downloadPath, `.metadata.${attemptId}.json`);
     try {
       console.log('Starting download process...');
 
@@ -111,9 +113,10 @@ class MedicineDownloader {
 
       const { url, date } = await this.getLatestExcelUrl();
 
-      const filePath = path.join(this.downloadPath, this.filename);
-
-      await this.downloadFile(url, filePath);
+      await this.downloadFile(url, stagedFilePath);
+      const parser = new ExcelParser(stagedFilePath);
+      await parser.parse();
+      await parser.saveAsJson(stagedJsonPath);
 
       const metadata = {
         downloadDate: new Date().toISOString(),
@@ -123,18 +126,13 @@ class MedicineDownloader {
       };
 
       const metadataPath = path.join(this.downloadPath, 'metadata.json');
-      await fs.writeFile(metadataPath, JSON.stringify(metadata, null, 2));
+      await fs.writeFile(stagedMetadataPath, JSON.stringify(metadata, null, 2));
+      await fs.rename(stagedFilePath, filePath);
+      await fs.rename(stagedJsonPath, path.join(this.downloadPath, 'medicines.json'));
+      await fs.rename(stagedMetadataPath, metadataPath);
 
       console.log('Download completed successfully!');
       console.log(`Metadata saved to: ${metadataPath}`);
-
-      // Parse Excel and create JSON
-      console.log('\nParsing Excel file...');
-      const parser = new ExcelParser(filePath);
-      await parser.parse();
-
-      const jsonPath = path.join(this.downloadPath, 'medicines.json');
-      await parser.saveAsJson(jsonPath);
 
       console.log('Excel parsed and JSON created successfully!');
 
@@ -142,12 +140,16 @@ class MedicineDownloader {
     } catch (error) {
       console.error('Download failed:', error.message);
       throw error;
+    } finally {
+      await Promise.all([stagedFilePath, stagedJsonPath, stagedMetadataPath].map(stagedPath =>
+        fs.rm(stagedPath, { force: true })
+      ));
     }
   }
 }
 
 // Check if this script is being run directly
-if (import.meta.url.endsWith(path.basename(process.argv[1]))) {
+if (isMainModule(import.meta.url)) {
   const downloader = new MedicineDownloader();
   downloader.download()
     .then(() => process.exit(0))
